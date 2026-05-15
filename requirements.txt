@@ -1,0 +1,7 @@
+torch
+monai
+fastapi
+uvicorn
+nibabel
+numpy
+pillow
