@@ -170,17 +170,44 @@ plt.axis('off')
 
 plt.show()
 
+from fastapi import FastAPI, UploadFile, File
+import io
+from PIL import Image
 import uvicorn
 import nest_asyncio
 import asyncio
 
-# 1. Allow nested event loops (essential for Colab)
+# 1. Initialize the FastAPI app
+app = FastAPI(title="MRI Denoising API")
+
+@app.post("/denoise")
+async def denoise_mri(file: UploadFile = File(...)):
+    # Read the uploaded file
+    contents = await file.read()
+    image = Image.open(io.BytesIO(contents)).convert("L")
+    
+    # Preprocess (Resizing to match your 128x128 training)
+    image = image.resize((128, 128))
+    img_array = np.array(image) / 255.0
+    input_tensor = torch.from_numpy(img_array).float().view(1, 1, 128, 128).to(device)
+    
+    # AI Inference
+    model.eval()
+    with torch.no_grad():
+        output = model(input_tensor).cpu().squeeze().numpy()
+    
+    return {
+        "status": "Success", 
+        "message": "MRI processed through U-Net",
+        "output_shape": str(output.shape)
+    }
+
+# 2. Allow nested event loops for Colab
 nest_asyncio.apply()
 
-# 2. Configure the server
+# 3. Configure and start the server
 config = uvicorn.Config(app, host="0.0.0.0", port=8000, loop="asyncio")
 server = uvicorn.Server(config)
 
-# 3. Start the server using the already running loop
 print("Server is starting on http://localhost:8000")
 await server.serve()
